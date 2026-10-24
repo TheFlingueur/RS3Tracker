@@ -1,22 +1,36 @@
-# The_Deedz — RS3 Progress Tracker
+# The_Deedz RS3 Tracker — Railway-ready
 
-A local web app with:
-- An attempted live read of the official Adventurer's Log for `The_Deedz`
-- Quest-guide link extraction from the RuneScape Wiki progression guide
-- Area/achievement heading extraction from the RuneScape Wiki
-- Search, completion filters, and browser-local checklists
+## Deploy on Railway
 
-## Requirements
-- Node.js 18 or newer (uses built-in `fetch`)
+1. Extract this ZIP.
+2. Create a GitHub repository and upload the **contents** of this folder.
+3. In Railway, choose **New Project → Deploy from GitHub Repo** and select the repository.
+4. In the service's **Settings → Networking**, choose **Generate Domain**.
+5. Add a Railway **Volume** mounted at `/data` (recommended for persistent SQLite data).
+6. In **Variables**, set `DATA_DIR=/data`. Optional: set `RS3_PLAYER=The_Deedz`.
+7. Redeploy if Railway does not automatically redeploy after adding the variable/volume.
 
-## Run
-1. Extract the ZIP.
-2. Open a terminal in this folder.
-3. Run `npm install`
-4. Run `npm start`
-5. Open http://localhost:3000
+Railway should detect Node.js and run `npm start`. `railway.json` includes a health check at `/api/health`.
 
-## Important limitations
-The official Adventurer's Log may change markup, block automated requests, or not expose structured stats. The app displays an explicit message if the data cannot be read; it does not fabricate stats. Wiki extraction is best-effort and should be reviewed against the linked pages. Area-task completion is a local manual checklist and is not linked to the player's account. Progress is stored in the current browser's localStorage, not on a server.
+## Included
+- Express web server and API
+- SQLite-backed shared progress so checkmarks persist across browser/device sessions
+- Profile fetch attempt for the official Adventurer's Log
+- Best-effort quest and area-heading extraction from the RuneScape Wiki
+- Mobile-friendly dark fantasy UI
 
-This is an unofficial personal tool and is not affiliated with Jagex.
+## Notes and limitations
+- Add a Railway Volume mounted at `/data` and set `DATA_DIR=/data` if you want SQLite data to survive redeploys/restarts. Without a persistent volume, local SQLite data may be lost.
+- This tracker has no login. Anyone with the public URL can view and change shared checklist progress. Do not use it for private data. If you want personal-only access, add authentication before sharing.
+- The official Adventurer's Log may block server requests or change markup; the app shows an error instead of inventing stats.
+- Wiki scraping is best-effort and can change when the Wiki changes its HTML. The imported quest links/headings should be reviewed against the original guides.
+- Area completion is manual; the app does not have access to Jagex's private account completion state.
+- Unofficial fan project; not affiliated with Jagex.
+
+## Local run
+Requires Node.js 20+:
+```bash
+npm install
+npm start
+```
+Open http://localhost:3000.

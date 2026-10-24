@@ -1,8 +1,13 @@
 {
-  "name": "the-deedz-rs3-progress-tracker",
-  "version": "1.0.0",
+  "name": "the-deedz-rs3-tracker",
+  "version": "1.1.0",
   "private": true,
-  "description": "A local RS3 player, quest progression, and area task tracker.",
+  "description": "Railway-ready RuneScape 3 progress tracker for The_Deedz",
   "scripts": { "start": "node server.js" },
-  "dependencies": { "cheerio": "^1.0.0", "express": "^4.21.2" }
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "cheerio": "^1.0.0",
+    "express": "^4.21.2"
+  }
 }
