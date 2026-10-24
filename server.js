@@ -1,6 +1,5 @@
 const express = require("express");
 const cheerio = require("cheerio");
-const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
 
@@ -12,26 +11,47 @@ const PORT = process.env.PORT || 3000;
 const PLAYER = process.env.RS3_PLAYER || "The_Deedz";
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 fs.mkdirSync(DATA_DIR, { recursive: true });
-const db = new Database(path.join(DATA_DIR, "tracker.sqlite"));
-db.pragma("journal_mode = WAL");
-db.exec(`
-  CREATE TABLE IF NOT EXISTS progress (
-    item_type TEXT NOT NULL CHECK(item_type IN ('quest','area')),
-    item_key TEXT NOT NULL,
-    completed INTEGER NOT NULL DEFAULT 0,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY(item_type, item_key)
-  );
-`);
+const progressFile = path.join(DATA_DIR, "progress.json");
 
-const getProgress = db.prepare("SELECT item_type, item_key, completed, updated_at FROM progress ORDER BY item_type, item_key");
-const setProgress = db.prepare(`
-  INSERT INTO progress (item_type, item_key, completed, updated_at)
-  VALUES (@type, @key, @completed, CURRENT_TIMESTAMP)
-  ON CONFLICT(item_type, item_key) DO UPDATE SET
-    completed=excluded.completed, updated_at=CURRENT_TIMESTAMP
-`);
-const deleteProgress = db.prepare("DELETE FROM progress WHERE item_type=? AND item_key=?");
+function readProgress() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(progressFile, "utf8"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    console.error("Could not read progress file:", error);
+    return [];
+  }
+}
+
+function writeProgress(items) {
+  const tempFile = `${progressFile}.tmp`;
+  fs.writeFileSync(tempFile, JSON.stringify(items, null, 2), "utf8");
+  fs.renameSync(tempFile, progressFile);
+}
+
+function getProgress() {
+  return readProgress().sort((a, b) =>
+    a.item_type.localeCompare(b.item_type) || a.item_key.localeCompare(b.item_key)
+  );
+}
+
+function setProgress(type, key, completed) {
+  const items = readProgress();
+  const existing = items.find(item => item.item_type === type && item.item_key === key);
+  const updated_at = new Date().toISOString();
+  if (existing) {
+    existing.completed = completed ? 1 : 0;
+    existing.updated_at = updated_at;
+  } else {
+    items.push({ item_type: type, item_key: key, completed: completed ? 1 : 0, updated_at });
+  }
+  writeProgress(items);
+}
+
+function deleteProgress(type, key) {
+  writeProgress(readProgress().filter(item => !(item.item_type === type && item.item_key === key)));
+}
 
 async function fetchPage(url) {
   const response = await fetch(url, {
@@ -56,7 +76,7 @@ app.put("/api/progress", (req, res) => {
       !key.trim() || key.length > 300 || typeof completed !== "boolean") {
     return res.status(400).json({ error: "Expected type (quest/area), key (string), and completed (boolean)." });
   }
-  setProgress.run({ type, key: key.trim(), completed: completed ? 1 : 0 });
+  setProgress(type, key.trim(), completed);
   res.json({ ok: true, type, key: key.trim(), completed });
 });
 
@@ -65,7 +85,7 @@ app.delete("/api/progress", (req, res) => {
   if (!["quest", "area"].includes(type) || typeof key !== "string" || !key.trim()) {
     return res.status(400).json({ error: "Expected type (quest/area) and key (string)." });
   }
-  deleteProgress.run(type, key.trim());
+  deleteProgress(type, key.trim());
   res.json({ ok: true });
 });
 
